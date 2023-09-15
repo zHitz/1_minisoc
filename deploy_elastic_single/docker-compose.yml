@@ -1,0 +1,141 @@
+version: "3.7"
+
+services:
+  setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    hostname: his-cybersoc-setup
+    volumes:
+      - ${CERTS}:/usr/share/elasticsearch/config/certs
+      - "/etc/localtime:/etc/localtime:ro"
+    user: "0"
+    command: >
+      bash -c '
+        if [ x${ELASTIC_PASSWORD} == x ]; then
+          echo "Set the ELASTIC_PASSWORD environment variable in the .env file";
+          exit 1;
+        elif [ x${KIBANA_PASSWORD} == x ]; then
+          echo "Set the KIBANA_PASSWORD environment variable in the .env file";
+          exit 1;
+        fi;
+        if [ ! -f config/certs/ca.zip ]; then
+          echo "Creating CA";
+          bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
+          unzip config/certs/ca.zip -d config/certs;
+        fi;
+        if [ ! -f config/certs/certs.zip ]; then
+          echo "Creating certs";
+          echo -ne \
+          "instances:\n"\
+          "  - name: his-cybersoc-logs\n"\
+          "    dns:\n"\
+          "      - his-cybersoc-logs\n"\
+          "      - ${DOMAIN_COLLECT_LOGS}\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          "      - ${IP_COLLECT_LOGS1}\n"\
+          "      - ${IP_COLLECT_LOGS2}\n"\
+          "  - name: his-cybersoc-dashboard\n"\
+          "    dns:\n"\
+          "      - his-cybersoc-dashboard\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          > config/certs/instances.yml;
+          bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
+          unzip config/certs/certs.zip -d config/certs;
+        fi;
+        echo "Setting file permissions"
+        chown -R root:root config/certs;
+        find . -type d -exec chmod 750 \{\} \;;
+        find . -type f -exec chmod 640 \{\} \;;
+        echo "Waiting for Elasticsearch availability";
+        until curl -s --cacert config/certs/ca/ca.crt https://his-cybersoc-logs:9200 | grep -q "missing authentication credentials"; do sleep 30; done;
+        echo "Setting kibana_system password";
+        until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" https://his-cybersoc-logs:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 10; done;
+        echo "All done!";
+      '
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f config/certs/his-logs/his-logs.crt ]"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    networks:
+      - siem_net
+
+  logs:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    hostname: his-cybersoc-logs
+    restart: always
+    volumes:
+      - ${CERTS}/his-cybersoc-logs:/usr/share/elasticsearch/config/certs
+      - ${CERTS}/ca:/usr/share/elasticsearch/config/certs/ca
+      - ${DATA_ES}:/usr/share/elasticsearch/data
+      - ${CONFIG_ES}/config:/usr/share/elasticsearch/config
+      - "/etc/localtime:/etc/localtime:ro"
+    ports:
+      - ${ES_PORT}:9200
+    environment:
+      - node.name=his-cybersoc-logs
+      - cluster.initial_master_nodes=his-cybersoc-logs
+      #- discovery.seed_hosts=""
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=/usr/share/elasticsearch/config/certs/his-cybersoc-logs.key
+      - xpack.security.http.ssl.certificate=/usr/share/elasticsearch/config/certs/his-cybersoc-logs.crt
+      - xpack.security.http.ssl.certificate_authorities=/usr/share/elasticsearch/config/certs/ca/ca.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=/usr/share/elasticsearch/config/certs/his-cybersoc-logs.key
+      - xpack.security.transport.ssl.certificate=/usr/share/elasticsearch/config/certs/his-cybersoc-logs.crt
+      - xpack.security.transport.ssl.certificate_authorities=/usr/share/elasticsearch/config/certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      #- ES_JAVA_OPTS=${ES_JAVA_OPTS_ES}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - siem_net
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    hostname: his-cybersoc-dashboard
+    restart: always
+    volumes:
+      - ${CERTS}/his-cybersoc-dashboard:/usr/share/kibana/config/certs
+      - ${CERTS}/ca:/usr/share/kibana/config/certs/ca
+      - ${DATA_DASH}:/usr/share/kibana/data
+      - ${CONFIG_DASH}:/usr/share/kibana/config
+      - "/etc/localtime:/etc/localtime:ro"
+    ports:
+      - ${KIBANA_PORT}:5601
+    environment:
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
+    networks:
+      - siem_net
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.5.0
+    hostname: his-cybersoc-logstash
+    restart: always
+    ports:
+      - target: 1433
+        published: 1433
+        protocol: udp
+      - target: 51410
+        published: 51410
+        protocol: udp
+    volumes:
+      - ${CONFIG_LOGSTASH}/pipeline:/usr/share/logstash/pipeline
+      - ${CONFIG_LOGSTASH}/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - ${CONFIG_LOGSTASH}/pipelines.yml:/usr/share/logstash/config/pipelines.yml
+      # - /root/logstash/logs/camera:/usr/share/logstash/logs/camera
+      # - /root/logstash/logs/wifi:/usr/share/logstash/logs/wifi
+      - "/etc/localtime:/etc/localtime:ro"
+    deploy:
+        replicas: 1
+    networks:
+      - siem_net
+networks:
+  siem_net:
+    external: true

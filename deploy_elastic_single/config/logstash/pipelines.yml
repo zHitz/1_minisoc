@@ -1,0 +1,12 @@
+# This file is where you define your pipelines. You can define multiple. For more information on multiple pipelines, see the documentation:
+#   https://www.elastic.co/guide/en/logstash/current/multiple-pipelines.html
+# - pipeline.id: hissc-collector-access-finger
+#   path.config: "/usr/share/logstash/pipeline/1433-access-finger.conf"
+# - pipeline.id: hissc-collector-access-face
+#   path.config: "/usr/share/logstash/pipeline/1433-access-face.conf"
+# - pipeline.id: hissc-collector-wifi
+#   path.config: "/usr/share/logstash/pipeline/file-wifi.conf"
+# - pipeline.id: hissc-collector-camera
+#   path.config: "/usr/share/logstash/pipeline/file-camera.conf"
+# - pipeline.id: hissc-collector-opswat
+#   path.config: "/usr/share/logstash/pipeline/51410-opswat.conf"

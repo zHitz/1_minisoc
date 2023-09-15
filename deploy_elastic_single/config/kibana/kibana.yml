@@ -1,0 +1,35 @@
+server.name: his-cybersoc-dashboard
+server.host: "0.0.0.0"
+elasticsearch.hosts: [ "https://his-cybersoc-logs:9200" ] #### edit http
+
+
+#xpack.security.enabled: true
+#elasticsearch.username: "kibana_system"
+#elasticsearch.password: "RMqYdTzGBIfNr9tDsE29"
+elasticsearch.ssl.certificateAuthorities: "/usr/share/kibana/config/certs/ca/ca.crt"
+elasticsearch.ssl.verificationMode: certificate
+
+server.ssl.certificate: "/usr/share/kibana/config/certs/his-cybersoc-dashboard.crt"
+server.ssl.key: "/usr/share/kibana/config/certs/his-cybersoc-dashboard.key"
+server.ssl.enabled: true
+xpack.encryptedSavedObjects.encryptionKey: "032fe5fa33bd4a8ec9320a1592265d24"
+
+#xpack.fleet.registryProxyUrl: http://x.x.x.x:8132
+
+xpack.security.audit.enabled: true
+xpack.reporting.capture.browser.chromium.disableSandbox: true
+telemetry.enabled: false
+
+xpack.reporting.roles.enabled: false
+xpack.security.encryptionKey: "032fe5fa33bd4a8ec9320a1592265d24"
+xpack.reporting.kibanaServer.hostname: localhost
+
+monitoring.ui.container.elasticsearch.enabled: true
+monitoring.ui.container.logstash.enabled: true
+
+xpack.security.session.idleTimeout: "24h"
+xpack.security.session.lifespan: "3d"
+#xpack.actions.customHostSettings:
+#  - url: smtp://x.x.x.x
+#    smtp:
+#      ignoreTLS: true

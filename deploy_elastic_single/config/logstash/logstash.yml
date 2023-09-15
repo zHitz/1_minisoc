@@ -1,0 +1,33 @@
+#env.TZ: Asia/Ho_Chi_Minh
+http.host: "0.0.0.0"
+node.name: his-cybersoc-logstash
+xpack.monitoring.enabled: true
+xpack.monitoring.elasticsearch.username: 'logstash_system'
+xpack.monitoring.elasticsearch.password: 'xxxxx'
+xpack.monitoring.elasticsearch.hosts: [ "https://his-cybersoc-logs:9200" ]
+#config.reload.automatic: true
+#config.reload.interval: 3s
+
+# xpack.management.enabled: true
+# xpack.management.elasticsearch.hosts: ["http://x.x.x.x:9200"]
+# xpack.management.elasticsearch.username: logstash_admin
+# xpack.management.elasticsearch.password: xxxxx
+# xpack.management.logstash.poll_interval: 5s
+# xpack.management.pipeline.id: ["xxx","xxx","xxxx","xxxx"]
+
+#pipeline:
+#  batch:
+#    size: 2000
+#    delay: 50
+#pipeline.ecs_compatibility: disabled
+
+#path.data: /var/lib/logstash
+#path.logs: /var/log/logstash
+
+##### PERSITENT QUEUE
+#queue.type: persisted
+#path.queue: /etc/logstash/queue
+#queue.max_events: 100000000
+#queue.max_bytes: 60g
+#queue.checkpoint.acks: 0
+#queue.checkpoint.writes: 0
